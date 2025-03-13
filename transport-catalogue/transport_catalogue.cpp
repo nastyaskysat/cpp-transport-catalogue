@@ -2,31 +2,35 @@
 
 #include <execution>
 
-
 namespace transport_catalogue
 {
 
-    void TransportCatalogue::AddStop(Stop &&stop_)
+    void TransportCatalogue::AddStop(std::string_view name, geo::Coordinates coordinates)
     {
-        stops_.push_back(std::move(stop_));
-        Stop *stop_buf = &stops_.back();
-        stopname_to_stop.insert(StopMap::value_type(stop_buf->name_, stop_buf));
+        stops_.push_back({std::string(name), coordinates});
+        const Stop *stop_buf = &stops_.back();
+        stopname_to_stop[stop_buf->name_] = stop_buf;
     }
 
-    void TransportCatalogue::AddBus(Bus &&bus_)
+    void TransportCatalogue::AddBus(std::string_view name, const std::vector<std::string_view> &stop_names)
     {
-        Bus *bus_buf;
-        buses_.push_back(std::move(bus_));
-        bus_buf = &buses_.back();
-        busname_to_bus.insert(BusMap::value_type(bus_buf->name_, bus_buf));
+        buses_.push_back({std::string(name), {}});
+        Bus *bus_buf = &buses_.back();
 
-        for (Stop *_stop : bus_buf->stops_)
+        for (std::string_view stop_name : stop_names)
         {
-            _stop->buses_.push_back(bus_buf);
+            const Stop *stop = GetStop(stop_name);
+            if (stop)
+            {
+                bus_buf->stops_.push_back(stop);
+                stop_to_buses_[stop].insert(bus_buf);
+            }
         }
+
+        busname_to_bus[bus_buf->name_] = bus_buf;
     }
 
-    Bus *TransportCatalogue::GetBus(std::string_view bus_name)
+    const Bus *TransportCatalogue::GetBus(std::string_view bus_name) const
     {
         if (busname_to_bus.empty())
         {
@@ -43,7 +47,7 @@ namespace transport_catalogue
         }
     }
 
-    Stop *TransportCatalogue::GetStop(std::string_view stop_name)
+    const Stop *TransportCatalogue::GetStop(std::string_view stop_name) const
     {
         if (stopname_to_stop.empty())
         {
@@ -60,16 +64,14 @@ namespace transport_catalogue
         }
     }
 
-    std::unordered_set<const Stop*> TransportCatalogue::GetUniqueStops(Bus *bus)
+    std::unordered_set<ConstStop> TransportCatalogue::GetUniqueStops(const Bus *bus) const
     {
-        std::unordered_set<const Stop*> unique_stops_;
-
+        std::unordered_set<ConstStop> unique_stops_;
         unique_stops_.insert(bus->stops_.begin(), bus->stops_.end());
-
         return unique_stops_;
     }
 
-    double TransportCatalogue::GetLenght(Bus *bus)
+    double TransportCatalogue::GetLenght(const Bus *bus) const
     {
         return transform_reduce(next(bus->stops_.begin()),
                                 bus->stops_.end(),
@@ -78,19 +80,16 @@ namespace transport_catalogue
                                 std::plus<>{},
                                 [](const Stop *lhs, const Stop *rhs)
                                 {
-                                    return geo::ComputeDistance({(*lhs).lat_,
-                                                            (*lhs).lng_},
-                                                           {(*rhs).lat_,
-                                                            (*rhs).lng_});
+                                    return geo::ComputeDistance(lhs->coordinates, rhs->coordinates);
                                 });
     }
 
-    std::unordered_set<const Bus *> TransportCatalogue::StopGetUniqBuses(Stop *stop)
+    std::unordered_set<ConstBus> TransportCatalogue::StopGetUniqBuses(const Stop *stop) const
     {
-        std::unordered_set<const Bus*> unique_stops_;
-
-        unique_stops_.insert(stop->buses_.begin(), stop->buses_.end());
-
-        return unique_stops_;
+        if (stop_to_buses_.count(stop))
+        {
+            return stop_to_buses_.at(stop);
+        }
+        return {};
     }
 }

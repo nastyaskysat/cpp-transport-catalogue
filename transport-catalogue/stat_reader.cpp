@@ -11,7 +11,7 @@ namespace transport_catalogue
             auto entry = 4;
             str = str.substr(entry);
 
-            Bus *bus = catalogue.GetBus(str);
+            const Bus *bus = catalogue.GetBus(str);
             if (bus != nullptr)
             {
                 std::cout << "Bus " << bus->name_ << ": "
@@ -33,7 +33,7 @@ namespace transport_catalogue
             std::unordered_set<std::string_view> unique_buses_name;
             std::vector<std::string> bus_name_v;
 
-            Stop *stop = catalogue.GetStop(stop_name);
+            const Stop *stop = catalogue.GetStop(stop_name);
 
             if (stop != NULL)
             {
