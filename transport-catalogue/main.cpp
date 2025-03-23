@@ -1,16 +1,11 @@
-#include "transport_catalogue.h"
 #include "input_reader.h"
 #include "stat_reader.h"
 
-using namespace std;
-using namespace transport_catalogue;
-using namespace output;
-using namespace input;
+using namespace transport;
 
 int main()
 {
     TransportCatalogue tc;
-    input_(tc);
-    output_(tc);
+    input_(std::cin, tc);
+    output_(std::cin, tc, std::cout);
 }
-// исправила catalogue на tc

@@ -1,16 +1,12 @@
 #pragma once
-#include "transport_catalogue.h"
-#include <algorithm>
-#include <vector>
 
-namespace transport_catalogue
+#include "transport_catalogue.h"
+
+namespace transport
 {
 
-    namespace output
-    {
+    void output_(std::istream &in, TransportCatalogue &catalogue, std::ostream &out);
+    void PrintRoute(std::string &line, TransportCatalogue &catalogue, std::ostream &out);
+    void PrintStop(std::string &line, TransportCatalogue &catalogue, std::ostream &out);
 
-        void query_stop(TransportCatalogue &catalogue, std::string_view stop_name);
-        void query_(TransportCatalogue &catalogue, std::string_view str);
-        void output_(TransportCatalogue &catalogue);
-    }
-}
+} // namespace transport

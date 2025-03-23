@@ -1,139 +1,130 @@
 #include "input_reader.h"
-#include "stat_reader.h"
-#include <algorithm>
 
-namespace transport_catalogue
+namespace transport
 {
-    namespace input
+
+    void input_(std::istream &in, TransportCatalogue &catalogue)
     {
-        Stop SplitStop(std::string str)
+        std::vector<std::string> query_bus;
+        std::vector<std::string> query_stop;
+        std::vector<std::string> query_stop_distances;
+        size_t requests_count;
+
+        in >> requests_count;
+        for (size_t i = 0; i < requests_count; ++i)
         {
-            auto twopoint_pos = str.find(':');
-            auto comma_pos = str.find(',');
-            auto entry_length = 5;
-            auto distance = 2;
-            Stop _stop;
-
-            _stop.name_ = str.substr(entry_length,
-                                     twopoint_pos - entry_length);
-            _stop.coordinates.lat = stod(str.substr(twopoint_pos + distance,
-                                                    comma_pos - twopoint_pos - distance));
-            _stop.coordinates.lng = stod(str.substr(comma_pos + distance));
-
-            return _stop;
-        }
-
-        Bus SplitBus(TransportCatalogue &catalogue, std::string_view str)
-        {
-            auto entry_length = 4;
-            auto distance = 2;
-            auto twopoint_pos = str.find(':');
-            Bus bus;
-            bus.name_ = std::string(str.substr(entry_length, twopoint_pos - entry_length));
-
-            str = str.substr(twopoint_pos + distance);
-
-            auto more_pos = str.find('>');
-            if (more_pos == std::string_view::npos)
+            std::string keyword, line;
+            in >> keyword;
+            std::getline(in, line);
+            if (keyword == "Stop")
             {
-                auto tire_pos = str.find('-');
-
-                while (tire_pos != std::string_view::npos)
-                {
-                    const auto stop_name = str.substr(0, tire_pos - 1);
-                    if (const Stop *stop = catalogue.GetStop(stop_name))
-                    {
-                        bus.stops_.push_back(stop);
-                    }
-
-                    str = str.substr(tire_pos + distance);
-                    tire_pos = str.find('-');
-                }
-
-                const auto stop_name = str.substr(0, tire_pos - 1);
-                if (const Stop *stop = catalogue.GetStop(stop_name))
-                {
-                    bus.stops_.push_back(stop);
-                }
-
-                // Дублируем остановки для обратного маршрута
-                const size_t size_ = bus.stops_.size() - 1;
-                for (size_t i = size_; i > 0; --i)
-                {
-                    bus.stops_.push_back(bus.stops_[i - 1]);
-                }
+                query_stop.push_back(line);
             }
-            else
+            if (keyword == "Bus")
             {
-
-                while (more_pos != std::string_view::npos)
-                {
-                    const auto stop_name = str.substr(0, more_pos - 1);
-                    if (const Stop *stop = catalogue.GetStop(stop_name))
-                    {
-                        bus.stops_.push_back(stop);
-                    }
-
-                    str = str.substr(more_pos + distance);
-                    more_pos = str.find('>');
-                }
-
-                const auto stop_name = str.substr(0, more_pos - 1);
-                if (const Stop *stop = catalogue.GetStop(stop_name))
-                {
-                    bus.stops_.push_back(stop);
-                }
+                query_bus.push_back(line);
             }
-
-            return bus;
         }
-
-        void input_(TransportCatalogue &catalogue)
+        query_stop_distances = query_stop;
+        for (auto &stop : query_stop)
         {
-            std::string count;
-            std::getline(std::cin, count);
+            auto [stop_name, coordinates] = FillStop(stop);
+            catalogue.AddStop(stop_name, coordinates);
+        }
+        for (auto &stop : query_stop_distances)
+        {
+            FillStopDistances(stop, catalogue);
+        }
+        for (auto &bus : query_bus)
+        {
+            auto [bus_number, stops, is_circle] = FillRoute(bus, catalogue);
+            catalogue.AddBus(bus_number, stops, is_circle);
+            bus = {};
+        }
+    }
 
-            if (!count.empty())
+    std::pair<std::string, geo::Coordinates> FillStop(std::string &line)
+    {
+        std::string stop_name = line.substr(1, line.find_first_of(':') - line.find_first_of(' ') - 1);
+        double lat = std::stod(line.substr(line.find_first_of(':') + 2, line.find_first_of(',') - 1));
+        double lng;
+        line.erase(0, line.find_first_of(',') + 2);
+        if (line.find_last_of(',') == line.npos)
+        {
+            lng = std::stod(line.substr(0, line.npos - 1));
+            line.clear();
+        }
+        else
+        {
+            lng = std::stod(line.substr(0, line.find_first_of(',')));
+            line.erase(0, line.find_first_of(',') + 2);
+        }
+        geo::Coordinates stop_coordinates = {lat, lng};
+
+        return {stop_name, stop_coordinates};
+    }
+
+    void FillStopDistances(std::string &line, TransportCatalogue &catalogue)
+    {
+        if (!line.empty())
+        {
+            std::string stop_from_name = FillStop(line).first;
+            const Stop *from = catalogue.FindStop(stop_from_name);
+
+            while (!line.empty())
             {
-                std::string str;
-                std::vector<std::string> buses;
-                int amount = stoi(count);
-                auto bus_distance = 3;
-
-                for (int i = 0; i < amount; ++i)
+                int distanse = 0;
+                std::string stop_to_name;
+                distanse = std::stoi(line.substr(0, line.find_first_of("m to ")));
+                line.erase(0, line.find_first_of("m to ") + 5);
+                if (line.find("m to ") == line.npos)
                 {
-                    std::getline(std::cin, str);
-
-                    if (!str.empty())
+                    stop_to_name = line.substr(0, line.npos - 1);
+                    const Stop *to = catalogue.FindStop(stop_to_name);
+                    catalogue.SetDistance(from, to, distanse);
+                    if (!catalogue.GetDistance(from, to))
                     {
-                        auto space_pos = str.find_first_not_of(' ');
-                        str = str.substr(space_pos);
-
-                        if (str.substr(0, bus_distance) != "Bus")
-                        {
-
-                            Stop stop = SplitStop(str);
-                            catalogue.AddStop(stop.name_, stop.coordinates);
-                        }
-                        else
-                        {
-
-                            buses.push_back(str);
-                        }
+                        catalogue.SetDistance(to, from, distanse);
                     }
+                    line.clear();
                 }
-
-                for (const auto &bus : buses)
+                else
                 {
-                    Bus bus_data = SplitBus(catalogue, bus);
-                    std::vector<std::string_view> stop_names;
-                    for (const auto &stop : bus_data.stops_)
+                    stop_to_name = line.substr(0, line.find_first_of(','));
+                    const Stop *to = catalogue.FindStop(stop_to_name);
+                    catalogue.SetDistance(from, to, distanse);
+                    if (!catalogue.GetDistance(from, to))
                     {
-                        stop_names.push_back(stop->name_);
+                        catalogue.SetDistance(to, from, distanse);
                     }
-                    catalogue.AddBus(bus_data.name_, stop_names);
+                    line.erase(0, line.find_first_of(',') + 2);
                 }
             }
         }
     }
-}
+
+    std::tuple<std::string, std::vector<const Stop *>, bool> FillRoute(std::string &line, transport::TransportCatalogue &catalogue)
+    {
+        std::vector<const Stop *> route_stops;
+        std::string route_number = line.substr(1, line.find_first_of(':') - 1);
+        line.erase(0, line.find_first_of(':') + 2);
+        bool is_circle = false;
+        std::string stop_name;
+        auto pos = line.find('>') != line.npos ? '>' : '-';
+        while (line.find(pos) != line.npos)
+        {
+            stop_name = line.substr(0, line.find_first_of(pos) - 1);
+            const Stop *stop_name_pointer = catalogue.FindStop(stop_name);
+            route_stops.push_back(stop_name_pointer);
+            line.erase(0, line.find_first_of(pos) + 2);
+        }
+        stop_name = line.substr(0, line.npos - 1);
+        const Stop *stop_name_pointer = catalogue.FindStop(stop_name);
+        route_stops.push_back(stop_name_pointer);
+        if (pos == '>')
+            is_circle = true;
+
+        return {route_number, route_stops, is_circle};
+    }
+
+} // namespace transport

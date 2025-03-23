@@ -1,13 +1,16 @@
 #pragma once
+
 #include "transport_catalogue.h"
 
-namespace transport_catalogue
+#include <iostream>
+
+namespace transport
 {
 
-    namespace input
-    {
-        Stop SplitStop(std::string str);
-        Bus SplitBus(TransportCatalogue &catalogue, std::string_view str);
-        void input_(TransportCatalogue &catalogue);
-    }
-}
+    void input_(std::istream &in, TransportCatalogue &catalogue);
+
+    std::pair<std::string, geo::Coordinates> FillStop(std::string &line);
+    void FillStopDistances(std::string &line, TransportCatalogue &catalogue);
+    std::tuple<std::string, std::vector<const Stop *>, bool> FillRoute(std::string &line, transport::TransportCatalogue &catalogue);
+
+} // namespace transport
