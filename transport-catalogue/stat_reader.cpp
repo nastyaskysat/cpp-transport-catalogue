@@ -9,7 +9,7 @@ namespace transport
         size_t requests_count;
         in >> requests_count;
         std::string dummy;
-        std::getline(in, dummy); // consume newline
+        std::getline(in, dummy);
         
         for (size_t i = 0; i < requests_count; ++i) {
             std::string line;
