@@ -9,7 +9,7 @@ namespace transport
         stopname_to_stop_[all_stops_.back().name] = &all_stops_.back();
     }
 
-    void Catalogue::AddRoute(std::string_view bus_number, const std::vector<const Stop *> stops, bool is_circle)
+    void Catalogue::AddRoute(std::string_view bus_number, const std::vector<ConstStop> stops, bool is_circle)
     {
         all_buses_.push_back({std::string(bus_number), stops, is_circle});
         busname_to_bus_[all_buses_.back().number] = &all_buses_.back();
@@ -56,6 +56,46 @@ namespace transport
             return stop_distances_.at({to, from});
         else
             return 0;
+    }
+    std::optional<transport::BusStat> Catalogue::GetBusStat(const std::string_view bus_number) const
+    {
+        transport::BusStat bus_stat{};
+        const transport::Bus *bus = FindRoute(bus_number);
+
+        if (!bus)
+            throw std::invalid_argument("bus not found");
+        if (bus->is_circle)
+            bus_stat.stops_count = bus->stops.size();
+        else
+            bus_stat.stops_count = bus->stops.size() * 2 - 1;
+
+        int route_length = 0;
+        double geographic_length = 0.0;
+
+        for (size_t i = 0; i < bus->stops.size() - 1; ++i)
+        {
+            auto from = bus->stops[i];
+            auto to = bus->stops[i + 1];
+            if (bus->is_circle)
+            {
+                route_length += GetDistance(from, to);
+                geographic_length += geo::ComputeDistance(from->coordinates,
+                                                          to->coordinates);
+            }
+            else
+            {
+                route_length += GetDistance(from, to) + GetDistance(to, from);
+                geographic_length += geo::ComputeDistance(from->coordinates,
+                                                          to->coordinates) *
+                                     2;
+            }
+        }
+
+        bus_stat.unique_stops_count = UniqueStopsCount(bus_number);
+        bus_stat.route_length = route_length;
+        bus_stat.curvature = route_length / geographic_length;
+
+        return bus_stat;
     }
 
     const std::map<std::string_view, const Bus *> Catalogue::GetSortedAllBuses() const
