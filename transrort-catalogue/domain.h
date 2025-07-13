@@ -1,6 +1,6 @@
-#pragma once
+#pragma once 
 
-#include "geo.h"
+#include "geo.h" 
 
 #include <string>
 #include <vector>
@@ -26,6 +26,11 @@ struct BusStat {
     size_t unique_stops_count;
     double route_length;
     double curvature;
+};
+
+struct RoutingSettings {
+    int bus_wait_time = 0;
+    double bus_velocity = 0.0;
 };
 
 } // namespace transport
