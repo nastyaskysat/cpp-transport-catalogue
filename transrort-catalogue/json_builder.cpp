@@ -164,7 +164,6 @@ namespace json
         return {}; 
     } 
  
-    // Context implementations 
     Builder &Context::Value(Node::Value value) 
     { 
         return builder_.Value(std::move(value)); 
@@ -179,8 +178,7 @@ namespace json
     { 
         return builder_.StartArray(); 
     } 
- 
-    // DictItemContext implementations 
+
     DictKeyContext DictItemContext::Key(std::string key) 
     { 
         return builder_.Key(std::move(key)); 
@@ -190,8 +188,7 @@ namespace json
     { 
         return builder_.EndDict(); 
     } 
- 
-    // DictKeyContext implementations 
+
     DictItemContext DictKeyContext::Value(Node::Value value) 
     { 
         return DictItemContext(builder_.Value(std::move(value))); 
@@ -206,8 +203,7 @@ namespace json
     { 
         return builder_.StartDict(); 
     } 
- 
-    // ArrayItemContext implementations 
+
     ArrayItemContext ArrayItemContext::Value(Node::Value value) 
     { 
         return ArrayItemContext(builder_.Value(std::move(value))); 

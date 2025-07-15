@@ -91,7 +91,7 @@ namespace json
         DictItemContext StartDict(); 
         ArrayItemContext StartArray(); 
         Builder &EndArray(); 
-        // Запрещаем методы, которые не должны быть доступны в этом контексте 
+
         DictKeyContext Key(std::string key) = delete; 
         Builder &EndDict() = delete; 
     }; 

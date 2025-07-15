@@ -84,12 +84,12 @@ std::optional<RouteInternalInfo> Router::FindRoute(const Stop* stop_from, const 
     for (const auto& edge_id : route_info->edges) {
         const auto& edge = graph_.GetEdge(edge_id);
         
-        if (edge.quality == 0) { // Wait edge
+        if (edge.quality == 0) { 
             result.items.push_back(RouteInternalInfo::WaitItem{
                 catalogue_->FindStop(edge.name),
                 Minutes{edge.weight}
             });
-        } else { // Bus edge
+        } else { 
             result.items.push_back(RouteInternalInfo::BusItem{
                 catalogue_->FindRoute(edge.name),
                 Minutes{edge.weight},
