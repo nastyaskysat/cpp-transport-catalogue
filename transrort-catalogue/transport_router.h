@@ -4,31 +4,46 @@
 #include "transport_catalogue.h"
 
 #include <memory>
+#include <chrono>
+#include <variant>
 
 namespace transport {
 
+using Minutes = std::chrono::duration<double, std::chrono::minutes::period>;
+
+struct RouteInternalInfo {
+    Minutes total_time;
+
+    struct BusItem {
+        const Bus* bus_ptr;
+        Minutes time;
+        size_t span_count;
+    };
+    struct WaitItem {
+        const Stop* stop_ptr;
+        Minutes time;
+    };
+
+    using Item = std::variant<BusItem, WaitItem>;
+    std::vector<Item> items;
+};
+
 class Router {
 public:
-    Router() = default;
-
-    Router(int bus_wait_time, double bus_velocity)
-        : bus_wait_time_(bus_wait_time)
-        , bus_velocity_(bus_velocity) {}
-
-    Router(const Router& settings, const Catalogue& catalogue) {
-        bus_wait_time_ = settings.bus_wait_time_;
-        bus_velocity_ = settings.bus_velocity_;
+ Router(int bus_wait_time, double bus_velocity, const Catalogue& catalogue)
+        : settings_{bus_wait_time, bus_velocity}, catalogue_(&catalogue) 
+    {
         BuildGraph(catalogue);
     }
-
-    const graph::DirectedWeightedGraph<double>& BuildGraph(const Catalogue& catalogue);
-    const std::optional<graph::Router<double>::RouteInfo> FindRoute(std::string_view stop_from, std::string_view stop_to) const;
-    const graph::DirectedWeightedGraph<double>& GetGraph() const;
+    Router(const RoutingSettings& settings, const Catalogue& catalogue);
+    
+    std::optional<RouteInternalInfo> FindRoute(const Stop* stop_from, const Stop* stop_to) const;
 
 private:
-    int bus_wait_time_ = 0;
-    double bus_velocity_ = 0.0;
-
+    void BuildGraph(const Catalogue& catalogue);
+    
+    RoutingSettings settings_;
+    const Catalogue* catalogue_ = nullptr;
     graph::DirectedWeightedGraph<double> graph_;
     std::map<std::string, graph::VertexId> stop_ids_;
     std::unique_ptr<graph::Router<double>> router_;
